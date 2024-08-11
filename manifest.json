@@ -5,7 +5,8 @@
     "description": "Enables Picture-in-Picture mode for supported sites.",
     "permissions": [
         "activeTab",
-        "scripting"
+        "scripting",
+        "storage"
     ],
     "host_permissions" : [
         "https://*.youtube.com/*",
