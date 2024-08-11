@@ -4,8 +4,10 @@
     "version": "1.0",
     "description": "Enables Picture-in-Picture mode for supported sites.",
     "permissions": [
-      "activeTab",
-      "scripting"
+        "activeTab",
+        "storage",
+        "tabs",
+        "scripting"
     ],
     "action": {
       "default_popup": "popup.html",

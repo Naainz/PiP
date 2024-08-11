@@ -1,75 +1,70 @@
-document.addEventListener('DOMContentLoaded', async () => {
+document.addEventListener('DOMContentLoaded', () => {
     const pipButton = document.getElementById('pipButton');
     const message = document.getElementById('message');
     const status = document.getElementById('status');
   
-    let [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    const supportedSites = ["youtube.com", "disneyplus.com", "netflix.com"];
-    let url = new URL(tab.url);
-    let domain = url.hostname;
-  
     
-    if (document.pictureInPictureElement) {
-      status.innerText = "PiP mode is currently active.";
-      message.style.display = 'none';
-      pipButton.innerText = "Disable PiP";
+    chrome.tabs.query({ active: true, currentWindow: true }, async (tabs) => {
+      let tab = tabs[0];
+      const supportedSites = ["youtube.com", "disneyplus.com", "netflix.com"];
+      let url = new URL(tab.url);
+      let domain = url.hostname;
   
-      pipButton.addEventListener('click', async () => {
-        if (document.pictureInPictureElement) {
-          document.exitPictureInPicture();
-          status.innerText = "PiP mode has been disabled.";
-          pipButton.innerText = "Enable PiP";
-        }
-      });
-    } else {
       
-      chrome.storage.local.get('seenMessage', async (result) => {
+      chrome.storage.local.get('seenMessage', (result) => {
         if (result.seenMessage) {
           
-          message.style.display = 'none';
-          pipButton.style.display = 'none';
-  
-          if (supportedSites.some(site => domain.includes(site))) {
-            chrome.scripting.executeScript({
-              target: { tabId: tab.id },
-              function: enablePiP
-            });
-            status.innerText = 'PiP mode is enabled.';
-          } else {
-            status.innerText = "Site not supported for PiP.";
-          }
+          handlePiPToggle(tab, supportedSites, domain, status);
         } else {
           
           message.style.display = 'block';
           pipButton.style.display = 'block';
   
-          pipButton.addEventListener('click', async () => {
+          pipButton.addEventListener('click', () => {
             
             chrome.storage.local.set({ 'seenMessage': true });
   
-            if (supportedSites.some(site => domain.includes(site))) {
-              chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                function: enablePiP
-              });
-              message.style.display = 'none';
-              pipButton.style.display = 'none';
-              status.innerText = 'PiP mode is enabled.';
-            } else {
-              status.innerText = "Site not supported for PiP.";
-            }
+            
+            message.style.display = 'none';
+            pipButton.style.display = 'none';
+  
+            
+            handlePiPToggle(tab, supportedSites, domain, status);
           });
         }
       });
-    }
+    });
   });
   
-  function enablePiP() {
-    let video = document.querySelector('video');
-    if (video) {
-      video.requestPictureInPicture();
-    } else {
-      alert('No video found on this page.');
+  function handlePiPToggle(tab, supportedSites, domain, status) {
+    chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      function: checkAndTogglePiP,
+      args: [supportedSites, domain]
+    }, (results) => {
+      if (results && results[0] && results[0].result === "pipClosed") {
+        status.innerText = "PiP mode has been disabled.";
+      } else if (results && results[0] && results[0].result === "pipOpened") {
+        status.innerText = "PiP mode is enabled.";
+      } else {
+        status.innerText = "Site not supported for PiP.";
+      }
+    });
+  }
+  
+  function checkAndTogglePiP(supportedSites, domain) {
+    if (document.pictureInPictureElement) {
+      document.exitPictureInPicture();
+      return "pipClosed";
+    } else if (supportedSites.some(site => domain.includes(site))) {
+      let video = document.querySelector('video');
+      if (video) {
+        video.requestPictureInPicture();
+        return "pipOpened";
+      } else {
+        alert('No video found on this page.');
+      }
     }
+    return "unsupportedSite";
   }
   
