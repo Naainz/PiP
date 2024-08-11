@@ -1,52 +1,42 @@
 chrome.action.onClicked.addListener(async (tab) => {
-    
-    chrome.storage.local.set({ activatePiP: true });
-    checkAndTogglePiP(tab);
-  });
-  
-  chrome.tabs.onActivated.addListener(async (activeInfo) => {
-    let tab = await chrome.tabs.get(activeInfo.tabId);
-    chrome.storage.local.get('activatePiP', (result) => {
-      if (result.activatePiP) {
-        checkAndTogglePiP(tab);
-      }
-    });
-  });
-  
-  chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'complete') {
-      chrome.storage.local.get('activatePiP', (result) => {
-        if (result.activatePiP) {
-          checkAndTogglePiP(tab);
-        }
-      });
-    }
-  });
-  
-  function checkAndTogglePiP(tab) {
     const supportedSites = ["youtube.com", "disneyplus.com", "netflix.com"];
-    let url = new URL(tab.url);
-    let domain = url.hostname;
   
-    if (supportedSites.some(site => domain.includes(site))) {
+    
+    if (tab.url && isSupportedSite(tab.url, supportedSites)) {
+      
       chrome.scripting.executeScript({
         target: { tabId: tab.id },
         function: togglePiPMode
       });
+    } else {
+      console.log("This site is not supported for PiP.");
     }
+  });
+  
+  
+  function isSupportedSite(url, supportedSites) {
+    let domain;
+    try {
+      domain = new URL(url).hostname;
+    } catch (e) {
+      console.error("Invalid URL:", e);
+      return false;
+    }
+    return supportedSites.some(site => domain.includes(site));
   }
+  
   
   function togglePiPMode() {
     if (document.pictureInPictureElement) {
       document.exitPictureInPicture();
-      chrome.storage.local.set({ activatePiP: false }); 
     } else {
-      let video = document.querySelector('video');
+      const video = document.querySelector('video');
       if (video) {
-        video.requestPictureInPicture();
-        chrome.storage.local.set({ activatePiP: false }); 
+        video.requestPictureInPicture().catch(error => {
+          console.error("Failed to enter PiP mode:", error);
+        });
       } else {
-        alert('No video found on this page.');
+        alert("No video element found to activate PiP.");
       }
     }
   }
